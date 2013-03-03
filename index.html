@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+        <title></title>
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width">
+		<link rel="stylesheet" href="css/main.css">
+		<script type="text/javascript" src="js/jquery-1.9.1.min.js"></script>
+		<script>
+			window.fbAsyncInit = function() {
+			  FB.init({
+				appId      : '545129182175702',
+				channelUrl : 'fbchannel.html'
+			  });
+			};
+			// Load the SDK Asynchronously
+			  (function(d, debug){
+				 var js, id = 'facebook-jssdk', ref = d.getElementsByTagName('script')[0];
+				 if (d.getElementById(id)) {return;}
+				 js = d.createElement('script'); js.id = id; js.async = true;
+				 js.src = "//connect.facebook.net/en_US/all" + (debug ? "/debug" : "") + ".js";
+				 ref.parentNode.insertBefore(js, ref);
+			   }(document, /*debug*/ false));
+		</script>
+		<script type="text/javascript">
+			var currentScreen = '';
+			var gotoScreen = function( screenName ) {
+				if( currentScreen ) {
+					$('#'+currentScreen+'Screen').hide();
+				}
+				if( screenName ) {
+					$('#'+screenName+'Screen').show();
+				}
+				currentScreen = screenName;
+			}
+			
+			var createTpl = function( templateName ) {
+				var tpl = $('#'+templateName).clone();
+				tpl.removeClass('template');
+				tpl.attr('id', '');
+				return tpl;
+			}
+			
+			$(function(){
+				gotoScreen('login');
+				//gotoScreen('gameplay');
+			});
+		</script>
+    </head>
+    <body>
+		<div id="loginScreen" class="screen">
+			<h1>Quadrionary</h1>
+			<fieldset>
+			<button id="facebookLogin">Login Via Facebook!</button><br />
+			</fieldset>
+			<br />
+			<fieldset disabled="disabled">
+			Email: <input type="text" id="email" /><br />
+			Password: <input type="text" id="password" /><br />
+			<button id="emailLogin">Login via Email!</button><br />
+			</fieldset>
+			
+			<script type="text/javascript">
+			$('#facebookLogin').click(function(){
+				gotoScreen('loginLoad');
+				
+				 FB.login(function(response) {
+					 console.log(response);
+				   if (response.authResponse) {
+					 console.log('Welcome!  Fetching your information.... ');
+					 FB.api('/me', function(response) {
+						 console.log(response);
+					   console.log('Good to see you, ' + response.name + '.');
+					   gotoScreen('main');
+					 });
+					 FB.api('/me/friends', function(response) {
+						console.log(response); 
+					 });
+				   } else {
+					 console.log('User cancelled login or did not fully authorize.');
+				   }
+				 });
+			});
+			</script>
+		</div>      
+		
+		<div id="loginLoadScreen" class="screen">
+			<div>
+				<img class="loadSpinner" src="images/loading_spinner.gif" /><br />
+				<br />
+				Logging you in!
+			</div>
+		</div>
+
+
+		<div id="mainScreen" class="screen">
+			<h1>Quadrionary</h1>
+			<h3>Best Matches</h3>
+			<ol>
+				<li>Tom Starkie <button disabled="disabled">Challenge</button></li>
+				<li>Stephanie Brown <button disabled="disabled">Challenge</button></li>
+				<li>Chris Luyox <button disabled="disabled">Challenge</button></li>
+			</ol>
+			<br />
+			<h3>Challenges</h3>
+			<ul>
+				<li>ASdassdf <button disabled="disabled">Play</button></li>
+				<li>ASdassdf <button disabled="disabled">Play</button></li>
+				<li>ASdassdf <button disabled="disabled">Accept</button></li>
+				<li>ASdassdf <button disabled="disabled">Play</button></li>
+				<li>ASdassdf <button disabled="disabled">Accept</button></li>
+				<li>ASdassdf <button disabled="disabled">Nudge</button></li>
+				<li>ASdassdf <button disabled="disabled">Nudge</button></li>
+				<li>ASdassdf <button disabled="disabled">Nudge</button></li>
+			</ul>
+			<br />
+			<button id="createChallenge">Create Challenge</button><br />
+			<br />
+			<button id="shop" disabled="disabled">Shop</button><br />
+			<br />
+			<button id="options">Options</button>
+			<script type="Text/javascript">
+				$('#options').click(function(){
+					gotoScreen('options');
+				});
+				$('#createChallenge').click(function(){
+					gotoScreen('setupChallenge');
+				});
+			</script>
+		</div>
+		
+		<div id="optionsScreen" class="screen">
+			<button id="logout">Logout</button>
+			<br />
+			<br />
+			<button id="optionsBack">Back!</button>
+			<script type="Text/javascript">
+				$('#logout').click(function(){
+					gotoScreen('login');
+				});
+				$('#optionsBack').click(function(){
+					gotoScreen('main');
+				});
+			</script>
+		</div>
+
+		<div id="setupChallengeScreen" class="screen">
+			<h3>Selete a Pack!</h3>
+			
+			<table border="1">
+				<tbody>
+					<tr><td>
+						<button id="testPack">Business (Easy)</button>
+					</td></tr>
+					<tr><td>
+						<button disabled="disabled">Business (Challenging)</button>
+					</td></tr>
+					<tr><td>
+						<button disabled="disabled">Business (Hardcore)</button>
+					</td></tr>
+					<tr><td>
+						<button disabled="disabled">Everyday (Easy)</button>
+					</td></tr>
+					<tr><td>
+						<button disabled="disabled">Everyday (Challenging)</button>
+					</td></tr>
+					<tr><td>
+						<button disabled="disabled">Everyday (Hardcore)</button>
+					</td></tr>
+				</tbody>
+			</table>
+			<br />
+			<br />
+			<button id="setupChallengeBack">Back!</button>
+			<script type="Text/javascript">
+				$('#testPack').click(function(){
+					gotoScreen('loadGameplay');
+					setTimeout( function(){gotoScreen('gameplay');}, 300 );
+				});
+				$('#setupChallengeBack').click(function(){
+					gotoScreen('main');
+				});
+			</script>
+		</div>
+	
+		<div id="loadGameplayScreen" class="screen">
+			<div>
+				<img class="loadSpinner" src="images/loading_spinner.gif" /><br />
+				<br />
+				Loading Game!
+			</div>
+		</div>
+
+		<div id="gameplayScreen" class="screen">
+			VS Random Dude <br />
+			Guessed: 0/0 || Score: 0 || [Time Left]
+			<hr />
+			
+			<table id="pictureTable">
+				<tbody>
+					<tr>
+						<td>Picture 1</td>
+						<td>Picture 2</td>
+					</tr>
+					<tr>
+						<td>Picture 3</td>
+						<td>Picture 4</td>
+					</tr>
+				</tbody>
+			</table>
+			
+			<hr />
+			<div id="letterHolder">
+				<div class="letter template" id="letterTemplate">&nbsp;</div>
+			</div>
+			<hr />
+			<div id="letterXHolder">
+				<button class="letterX template" id="letterXTemplate"></button>
+			</div>
+			
+			<hr />
+			<h3>Test List</h3>
+			<div id="testList">
+			</div>
+		
+			<script type="text/javascript">
+				$(function(){
+					letterMap = [];
+					
+					xLetters = [];
+					for( var i = 0; i < 6; i++ ) {
+						letterMap[i] = null;					
+						xLetter = createTpl('letterTemplate');
+						(function(i){
+							xLetter.click(function(){
+								$(this).html('&nbsp;');
+								if( letterMap[i] ) {
+									letterMap[i].css('opacity', 1);
+									letterMap[i] = null;
+								}
+							});
+						})(i);
+						$('#letterHolder').append( xLetter );
+						xLetters.push( xLetter );
+					}
+					
+					var mLetters = 'DONKEYBUTARD';
+					
+					for( var i = 0; i < mLetters.length; ++i ) {
+						letterX = createTpl('letterXTemplate');
+						(function(i){
+							letterX.text(mLetters[i]);
+							letterX.click(function(){
+								if( $(this).css('opacity') <= 0 ) {
+									return;
+								}
+								var found = false;
+								for( var j = 0; j < xLetters.length; ++j ) {
+									if( letterMap[j] == null ) {
+										letterMap[j] = $(this);
+										xLetters[j].text(mLetters[i]);
+										found = true;
+										break;
+									}
+								}
+								if( found ) {
+									$(this).css('opacity', 0);
+									
+									var allEntered = true;
+									var fullKeyword = '';
+									for( var j = 0; j < xLetters.length; ++j ) {
+										if( xLetters[j].text().trim() == '' ) {
+											allEntered = false;
+											break;
+										} else {
+											fullKeyword += xLetters[j].text();
+										}
+									}
+									if( allEntered ) {
+										$('#testList').append(fullKeyword + '<br />');
+									}
+								}
+							});
+						})(i);
+						$('#letterXHolder').append( letterX );
+						
+						if( i % 6 == 5 ) {
+							$('#letterXHolder').append( '<br />' );
+						}
+					}
+				});
+			</script>
+		</div>
+
+		<div id="fb-root"></div>
+    </body>
+</html>
