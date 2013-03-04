@@ -65,22 +65,24 @@
 			$('#facebookLogin').click(function(){
 				gotoScreen('loginLoad');
 				
-				 FB.login(function(response) {
-					 console.log(response);
-				   if (response.authResponse) {
-					 console.log('Welcome!  Fetching your information.... ');
-					 FB.api('/me', function(response) {
-						 console.log(response);
-					   console.log('Good to see you, ' + response.name + '.');
-					   gotoScreen('main');
-					 });
-					 FB.api('/me/friends', function(response) {
-						console.log(response); 
-					 });
-				   } else {
-					 console.log('User cancelled login or did not fully authorize.');
-				   }
-				 });
+				FB.login(function(response) {
+					console.log(response);
+					if (response.authResponse) {
+						console.log('Welcome!  Fetching your information.... ');
+						
+						FB.api('/me', function(response) {
+							console.log(response);
+							console.log('Good to see you, ' + response.name + '.');
+							gotoScreen('main');
+						});
+						
+						FB.api('/me/friends', function(response) {
+							
+						});
+					} else {
+						console.log('User cancelled login or did not fully authorize.');
+					}
+				});
 			});
 			</script>
 		</div>      
@@ -114,6 +116,7 @@
 				<li>ASdassdf <button disabled="disabled">Nudge</button></li>
 				<li>ASdassdf <button disabled="disabled">Nudge</button></li>
 			</ul>
+			<button id="refreshChallenges">Refresh Challenges</button><br />
 			<br />
 			<button id="createChallenge">Create Challenge</button><br />
 			<br />
