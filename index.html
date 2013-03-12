@@ -7,30 +7,21 @@
         <meta name="viewport" content="width=device-width">
 		<link rel="stylesheet" href="css/main.css">
 		<script type="text/javascript" src="js/jquery-1.9.1.min.js"></script>
-		<script>
-			window.fbAsyncInit = function() {
-			  FB.init({
-				appId      : '545129182175702',
-				channelUrl : 'fbchannel.html'
-			  });
-			};
-			// Load the SDK Asynchronously
-			  (function(d, debug){
-				 var js, id = 'facebook-jssdk', ref = d.getElementsByTagName('script')[0];
-				 if (d.getElementById(id)) {return;}
-				 js = d.createElement('script'); js.id = id; js.async = true;
-				 js.src = "//connect.facebook.net/en_US/all" + (debug ? "/debug" : "") + ".js";
-				 ref.parentNode.insertBefore(js, ref);
-			   }(document, /*debug*/ false));
-		</script>
 		<script type="text/javascript">
+			var screenList = {};
 			var currentScreen = '';
 			var gotoScreen = function( screenName ) {
 				if( currentScreen ) {
 					$('#'+currentScreen+'Screen').hide();
+					if(screenList[currentScreen] && screenList[currentScreen].onPause) {
+						screenList[currentScreen].onPause();
+					}
 				}
 				if( screenName ) {
 					$('#'+screenName+'Screen').show();
+					if(screenList[screenName] && screenList[screenName].onResume) {
+						screenList[screenName].onResume();
+					}
 				}
 				currentScreen = screenName;
 			}
@@ -41,47 +32,294 @@
 				tpl.attr('id', '');
 				return tpl;
 			}
+				
+			var screenInits = {};
+			var screen = function( screenName, screenInit ) {
+				if( !screenInit ) { 
+					return screenList[screenName];
+				}
+				screenInits[screenName] = screenInit;
+			};
+			
+			var initScreens = function(){
+				for( screenName in screenInits ) {
+					screenList[screenName] = new screenInits[screenName]();
+				}
+			};
+		</script>
+		<script type="text/javascript">
+			var picPackList = [];
+			var fbAuthInfo = null;
+			var fbFriendsList = [];
+			var challengeList = [];
+			var activeChallenge = {};
+			var activeGroupIdx = 0;
+			var authInfo = {};
+			var prevChallengeId = 0;
+			
+			function padString(str, pad, len)
+			{
+				var val = "" + str;
+				while( val.length < len ) {
+					val = pad + val;
+				}
+				return val;
+			}
+			
+			function formatTime(time) {
+				var hours = Math.floor( time / 3600 );
+				var minutes = Math.floor( time / 60 );
+				var seconds = Math.floor( time % 60 );
+				
+				var outTime = '';
+				if( hours > 0 ) {
+					outTime += padString(hours,'0',2) + ':';
+				}
+				outTime += padString(minutes,'0',2) + ':';
+				outTime += padString(seconds,'0',2);
+				return outTime;
+			}
+			
+			function preloadImages(list, done)
+			{
+				return done();
+				var list_remain = list.length;
+				for( var i = 0; i < list.length; ++i ) {
+					img = new Image();
+					img.onload = function(){
+						list_remain--;
+						if( list_remain == 0 ) {
+							done(null);
+						}
+					}
+					img.src = list[i];
+				}
+			}
+			
+			function initFbSdk( done )
+			{
+				window.fbAsyncInit = function() {
+					FB.init({
+						appId      : '545129182175702',
+						channelUrl : 'fbchannel.html'
+					});
+					done(null);
+				};
+				// Load the SDK Asynchronously
+				(function(d, debug){
+					var js, id = 'facebook-jssdk', ref = d.getElementsByTagName('script')[0];
+					if (d.getElementById(id)) {return;}
+					js = d.createElement('script'); js.id = id; js.async = true;
+					js.src = "//connect.facebook.net/en_US/all" + (debug ? "/debug" : "") + ".js";
+					ref.parentNode.insertBefore(js, ref);
+				}(document, /*debug*/ false));	
+			}
+			
+			function doFbLogin( done )
+			{
+				FB.login(function(response) {
+					console.log(response.authResponse);
+					if (response.authResponse) {	
+						fbAuthInfo = response.authResponse;			
+						done(null);
+					} else {
+						console.log('User cancelled login or did not fully authorize.');
+						done( new Error('User failed to authorize') );
+					}
+				},{scope: 'email'});
+			}
+			
+			function doLogin( done )
+			{
+				$.ajax({
+					type: 'POST',
+					url: '../TestAppApi/login.php',
+					dataType: 'json',
+					data: {
+						fbid: fbAuthInfo.userID,
+						fbtkn: fbAuthInfo.accessToken
+					}
+				}).done(function(data){
+					authInfo = data.result;
+					console.log(data);
+					done(null);
+				});
+			}
+			
+			function doLoadGamedata( done )
+			{
+				$.ajax({
+					url: '../TestAppApi/gamedata.php',
+					dataType: 'json'
+				}).done(function(data){
+					console.log(data);
+					picPackList = data.result.packs;
+					done(null);
+				});
+			}
+			
+			function updateFbFriends( done )
+			{
+				FB.api('/me/friends', {fields:'id,name,picture'}, function(response) {	
+				
+					var friendPicList = [];						
+					for( var i = 0; i < response.data.length; ++i ) {
+						var friend = response.data[i];
+						
+						fbFriendsList.push({
+							'id': friend.id,
+							'name': friend.name,
+							'picture': friend.picture.data.url
+						});
+						
+						friendPicList.push( friend.picture.data.url );
+					}
+					
+					preloadImages( friendPicList, function(){} );
+					
+					fbFriendsList.sort(function(a,b){
+						if(a.id == '601060001' || a.id == '579455812') return -1;
+						if(b.id == '601060001' || b.id == '579455812') return 1;
+						return 0;
+					});
+
+					done(null);
+				});
+			}
+			
+			function updateChallengeList( done )
+			{
+				$.ajax({
+					url: '../TestAppApi/get_challenges.php',
+					dataType: 'json'
+				}).done(function(data){
+					challengeList = data.result;
+					$(window).trigger('challengeListUpdated');
+					done(null);
+				});
+			}
+			
+			function createChallenge( done )
+			{
+				$.ajax({
+					url: '../TestAppApi/create_challenge.php',
+					dataType: 'json',
+					data: {
+						imagepack_id: challengePack,
+						prev_challenge_id: prevChallengeId,
+						fbid: challengeOpp.fbid,
+						user_id: challengeOpp.user_id
+					}
+				}).done(function(data){
+					console.log(data);
+					done(null, data.result.id);	
+				});
+			}
+			
+			function updateChallenge( done )
+			{
+				$.ajax({
+					url: '../TestAppApi/update_challenge.php',
+					dataType: 'json',
+					data: {
+						id: activeChallenge.id,
+						score: Math.floor(challengeSeconds)
+					}
+				}).done(function(data){
+					console.log(data);
+					done(null);		
+				});
+			}
+			
+			function loadChallenge( id, done )
+			{
+				$.ajax({
+					url: '../TestAppApi/get_challenge.php',
+					dataType: 'json',
+					data: {
+						id: id
+					}
+				}).done(function(data){
+					console.log(data);
+					
+					activeChallenge = data.result;
+					activeGroupIdx = 0;
+					
+					precacheImageList = [];
+					for( var i = 0; i < data.result.images.length; ++i ) {
+						precacheImageList.push(data.result.images[i].path);
+					}
+					preloadImages(precacheImageList, function(){
+						done(null);
+					});					
+				});
+			}
+			
+			var challengeOpp = { };
+			var challengePack = null;
+			var challengeStart = 0;
+			var challengeSeconds = 0;
 			
 			$(function(){
-				gotoScreen('login');
-				//gotoScreen('gameplay');
+				initScreens();
+				gotoScreen('gameLoad');
+				initFbSdk(function(){
+					gotoScreen('login');
+					//gotoScreen('score');
+				});
 			});
 		</script>
     </head>
     <body>
+		<div id="gameLoadScreen" class="screen">
+			<div>
+				<img class="loadSpinner" src="images/loading_spinner.gif" /><br />
+				<br />
+				Loading Quadrionary!
+			</div>
+		</div>
+	
 		<div id="loginScreen" class="screen">
 			<h1>Quadrionary</h1>
 			<fieldset>
 			<button id="facebookLogin">Login Via Facebook!</button><br />
 			</fieldset>
 			<br />
-			<fieldset disabled="disabled">
+			<fieldset disabled>
 			Email: <input type="text" id="email" /><br />
 			Password: <input type="text" id="password" /><br />
 			<button id="emailLogin">Login via Email!</button><br />
 			</fieldset>
 			
 			<script type="text/javascript">
-			$('#facebookLogin').click(function(){
-				gotoScreen('loginLoad');
-				
-				FB.login(function(response) {
-					console.log(response);
-					if (response.authResponse) {
-						console.log('Welcome!  Fetching your information.... ');
-						
-						FB.api('/me', function(response) {
-							console.log(response);
-							console.log('Good to see you, ' + response.name + '.');
-							gotoScreen('main');
+			screen('login', function(){
+				$('#facebookLogin').click(function(){
+					gotoScreen('loginLoad');
+					doFbLogin(function(err){
+						if( err ) {
+							console.log('Error with FbLogin', err);
+							return;
+						}
+						doLogin(function(err){
+							if(err) {
+								console.log('Error with Login', err);
+								return;
+							}
+							doLoadGamedata(function(err){
+								if( err ) {
+									console.log('Error with GameData', err);
+									return;
+								}
+								updateFbFriends(function(err){
+									if(err) {
+										console.log('Error with GetFriends', err);
+										return;
+									}
+									gotoScreen('main');
+								});
+							});
 						});
-						
-						FB.api('/me/friends', function(response) {
-							
-						});
-					} else {
-						console.log('User cancelled login or did not fully authorize.');
-					}
+					});
 				});
 			});
 			</script>
@@ -106,15 +344,8 @@
 			</ol>
 			<br />
 			<h3>Challenges</h3>
-			<ul>
-				<li>ASdassdf <button disabled="disabled">Play</button></li>
-				<li>ASdassdf <button disabled="disabled">Play</button></li>
-				<li>ASdassdf <button disabled="disabled">Accept</button></li>
-				<li>ASdassdf <button disabled="disabled">Play</button></li>
-				<li>ASdassdf <button disabled="disabled">Accept</button></li>
-				<li>ASdassdf <button disabled="disabled">Nudge</button></li>
-				<li>ASdassdf <button disabled="disabled">Nudge</button></li>
-				<li>ASdassdf <button disabled="disabled">Nudge</button></li>
+			<ul id="challengeListHolder">
+				<li class="challenge template" id="challengeTemplate">VS <span class="challengerName"></span> <button class="challengeButton">Challenge</button></li>
 			</ul>
 			<button id="refreshChallenges">Refresh Challenges</button><br />
 			<br />
@@ -123,12 +354,54 @@
 			<button id="shop" disabled="disabled">Shop</button><br />
 			<br />
 			<button id="options">Options</button>
-			<script type="Text/javascript">
-				$('#options').click(function(){
-					gotoScreen('options');
-				});
-				$('#createChallenge').click(function(){
-					gotoScreen('setupChallenge');
+			<script type="text/javascript">
+				screen('main', function(){
+					var renderChallengeList = function(){
+						$('#challengeListHolder > :not(.template)').remove();
+						
+						for( var i = 0; i < challengeList.length; ++i ) {
+							var challenge = challengeList[i];
+							
+							var challengeel = createTpl('challengeTemplate');
+							challengeel.find('.challengerName').text(challenge.opp_name);
+							if( challenge.display_state == 0 ) {
+								challengeel.find('.challengeButton').text('Play');
+							} else if( challenge.display_state == 1 ) {
+								challengeel.find('.challengeButton').text('Waiting...');
+								challengeel.find('.challengeButton').attr('disabled',true);
+							}
+							(function(challenge){
+								challengeel.find('.challengeButton').click(function(){
+									gotoScreen('loadGameplay');
+									loadChallenge( challenge.id, function(err){
+										if( err ) {
+											console.log('LoadChallenge error');
+											return;
+										}
+										gotoScreen('gameplay');
+									});
+								});
+							})(challenge);
+							$('#challengeListHolder').append(challengeel);
+						}
+					};
+					
+					$('#options').click(function(){
+						gotoScreen('options');
+					});
+					$('#createChallenge').click(function(){
+						gotoScreen('pickOpponent');
+					});
+					$('#refreshChallenges').click(function(){
+						updateChallengeList(function(){});
+					});
+					$(window).bind('challengeListUpdated', function(){
+						renderChallengeList();
+					});
+					
+					this.onResume = function(){
+						updateChallengeList(function(){});
+					};
 				});
 			</script>
 		</div>
@@ -147,29 +420,76 @@
 				});
 			</script>
 		</div>
+		
+		<div id="pickOpponentScreen" class="screen">
+			<h3>Select Opponent</h3>
+			
+			<button id="chooseGcOpponent" disabled="disabled">Gamecenter Friend</button><br />
+			<button id="chooseFbOpponent">Facebook Friend</button><br />
+			
+			<fieldset>
+			<input type="text" id="usernameOpponent" /><br />
+			<button id="chooseUserOpponent" disabled="disabled">By Username</button>
+			</fieldset>
+			<br />
+			<button id="pickOpponentBack">Back!</button>
+			<script type="Text/javascript">
+				$('#chooseFbOpponent').click(function(){
+					prevChallengeId = null;
+					gotoScreen('pickFbOpponent');
+				});
+				$('#pickOpponentBack').click(function(){
+					gotoScreen('main');
+				});
+			</script>
+		</div>
+
+		<div id="pickFbOpponentScreen" class="screen">
+			<h3>Select Facebook Opponent</h3>
+			
+			Filter: <input type="text" id="filterName" /><br />
+			<ul id="fbFriendHolder">
+				<li class="friend template" id="friendTemplate"><span class="friendName"></span> <button class="fbFriendChallenge">Challenge</button></li>
+			</ul>
+			<br />
+			<button id="pickFbOpponentBack">Back!</button>
+			<script type="Text/javascript">			
+				screen('pickFbOpponent', function(){
+					var renderFbFriendList = function(){
+						$('#fbFriendHolder > :not(.template)').remove();
+						
+						for( var i = 0; i < fbFriendsList.length; ++i ) {
+							var friend = fbFriendsList[i];
+							
+							var friendel = createTpl('friendTemplate');
+							friendel.find('.friendName').text(friend.name);
+							friendel.find('.fbFriendChallenge').click(function(){
+								challengeOpp.fbid = friend.id;
+								gotoScreen('setupChallenge');
+							});
+							$('#fbFriendHolder').append(friendel);
+						}
+					};
+
+					$('#pickFbOpponentBack').click(function(){
+						gotoScreen('pickOpponent');
+					});
+					
+					this.onResume = function() {
+						renderFbFriendList();
+					};
+				});
+			</script>
+		</div>
 
 		<div id="setupChallengeScreen" class="screen">
 			<h3>Selete a Pack!</h3>
 			
 			<table border="1">
-				<tbody>
-					<tr><td>
-						<button id="testPack">Business (Easy)</button>
-					</td></tr>
-					<tr><td>
-						<button disabled="disabled">Business (Challenging)</button>
-					</td></tr>
-					<tr><td>
-						<button disabled="disabled">Business (Hardcore)</button>
-					</td></tr>
-					<tr><td>
-						<button disabled="disabled">Everyday (Easy)</button>
-					</td></tr>
-					<tr><td>
-						<button disabled="disabled">Everyday (Challenging)</button>
-					</td></tr>
-					<tr><td>
-						<button disabled="disabled">Everyday (Hardcore)</button>
+				<tbody id="picPackHolder">
+					<tr id="picPackTemplate" class="picPack template"><td>
+						<button class="picPackButton">*Pack Name*</button>
+						<button class="picPBuyButton">Buy</button>
 					</td></tr>
 				</tbody>
 			</table>
@@ -177,12 +497,47 @@
 			<br />
 			<button id="setupChallengeBack">Back!</button>
 			<script type="Text/javascript">
-				$('#testPack').click(function(){
-					gotoScreen('loadGameplay');
-					setTimeout( function(){gotoScreen('gameplay');}, 300 );
-				});
-				$('#setupChallengeBack').click(function(){
-					gotoScreen('main');
+				screen('setupChallenge', function(){
+					var renderPicPackList = function(){
+						$('#picPackHolder > :not(.template)').remove();
+						
+						for( var i = 0; i < picPackList.length; ++i ) {
+							var pack = picPackList[i];
+							
+							var packel = createTpl('picPackTemplate');
+							packel.find('.picPackButton').text(pack.name);
+							if( pack.state == 2 ) {
+								packel.find('.picPBuyButton').hide();
+							} else {
+								packel.find('.picPackButton').attr('disabled', true );
+							}
+							packel.find('.picPackButton').click(function(){
+								challengePack = pack.id;
+								gotoScreen('loadGameplay');
+								createChallenge(function(err, challengeId){
+									if( err ) {
+										console.log('CreateChallenge error');
+										return;
+									}
+									loadChallenge( challengeId, function(err){
+										if( err ) {
+											console.log('LoadChallenge error');
+											return;
+										}
+										gotoScreen('gameplay');
+									});
+								});
+							});
+							$('#picPackHolder').append(packel);
+						}
+					};
+					$('#setupChallengeBack').click(function(){
+						gotoScreen('main');
+					});
+					
+					this.onResume = function(){
+						renderPicPackList();
+					};
 				});
 			</script>
 		</div>
@@ -196,19 +551,18 @@
 		</div>
 
 		<div id="gameplayScreen" class="screen">
-			VS Random Dude <br />
-			Guessed: 0/0 || Score: 0 || [Time Left]
+			VS <span id="gameOppName">NAME</span> | <span id="gameNumComplete">?</span>/<span id="gameNumTotal">?</span> | <span id="gameTimeLeft">00:30</span>
 			<hr />
 			
-			<table id="pictureTable">
+			<table id="pictureTableQuad">
 				<tbody>
 					<tr>
-						<td>Picture 1</td>
-						<td>Picture 2</td>
+						<td><img id="gamePicQ1" /></td>
+						<td><img id="gamePicQ2" /></td>
 					</tr>
 					<tr>
-						<td>Picture 3</td>
-						<td>Picture 4</td>
+						<td><img id="gamePicQ3" /></td>
+						<td><img id="gamePicQ4" /></td>
 					</tr>
 				</tbody>
 			</table>
@@ -222,17 +576,37 @@
 				<button class="letterX template" id="letterXTemplate"></button>
 			</div>
 			
-			<hr />
-			<h3>Test List</h3>
-			<div id="testList">
-			</div>
+			<button id="dbgComplete">Debug Complete</button>
 		
 			<script type="text/javascript">
-				$(function(){
+			screen('gameplay', function(){
+				function completeChallenge()
+				{
+					challengeSeconds = ( ((new Date()).getTime()) - challengeStart ) / 1000;
+					
+					gotoScreen('score');
+				}
+				
+				function tryGuessWord(word) {
+					var activeGroup = activeChallenge.imagegroups[activeGroupIdx];
+					if( word == activeGroup.word ) {
+						activeGroupIdx++;
+						if( activeGroupIdx >= activeChallenge.imagegroups.length ) {
+							completeChallenge();
+							return;
+						}
+						updateState();
+					}
+				}
+				
+				function setupWorder(word, letters) {
+					$('#letterHolder > :not(.template)').remove();
+					$('#letterXHolder > :not(.template)').remove();
+					
 					letterMap = [];
 					
 					xLetters = [];
-					for( var i = 0; i < 6; i++ ) {
+					for( var i = 0; i < word.length; i++ ) {
 						letterMap[i] = null;					
 						xLetter = createTpl('letterTemplate');
 						(function(i){
@@ -248,7 +622,7 @@
 						xLetters.push( xLetter );
 					}
 					
-					var mLetters = 'DONKEYBUTARD';
+					var mLetters = letters;
 					
 					for( var i = 0; i < mLetters.length; ++i ) {
 						letterX = createTpl('letterXTemplate');
@@ -281,7 +655,7 @@
 										}
 									}
 									if( allEntered ) {
-										$('#testList').append(fullKeyword + '<br />');
+										tryGuessWord( fullKeyword );
 									}
 								}
 							});
@@ -292,6 +666,115 @@
 							$('#letterXHolder').append( '<br />' );
 						}
 					}
+				}
+				function getImage(id) {
+					for( var i = 0; i < activeChallenge.images.length; ++i ) {
+						if( activeChallenge.images[i].id == id ) {
+							return activeChallenge.images[i].path;
+						}
+					}
+					return '';
+				}
+				function updateState()
+				{
+					var activeGroup = activeChallenge.imagegroups[activeGroupIdx];
+					setupWorder(activeGroup.word, activeGroup.letters);
+					$('#gamePicQ1').attr('src', getImage(activeGroup.image1));
+					$('#gamePicQ2').attr('src', getImage(activeGroup.image2));
+					$('#gamePicQ3').attr('src', getImage(activeGroup.image3));
+					$('#gamePicQ4').attr('src', getImage(activeGroup.image4));
+					$('#gameNumComplete').text( activeGroupIdx+1 );
+				}
+				
+				$('#dbgComplete').click(function(){
+					completeChallenge();
+				});
+				
+				var timeTimer = null;
+			
+				this.onResume = function() {
+					challengeStart = (new Date()).getTime();
+					timeTimer = setInterval(function(){
+						var curTime = (new Date()).getTime();
+						$('#gameTimeLeft').text( formatTime( (curTime-challengeStart)/1000 ) );
+					},100);
+					$('#gameOppName').text(activeChallenge.opp_name);
+					$('#gameNumTotal').text( activeChallenge.imagegroups.length );
+					updateState();
+				};
+				this.onPause = function() {
+					if( timeTimer ) {
+						clearInterval(timeTimer);
+					}
+				};
+			});
+			</script>
+		</div>
+		
+		<div id="scoreScreen" class="screen">
+			<h3>Round Completed!</h3>
+			
+			<h4 id="gameResult">Winner!</h4>
+			
+			<div class="">
+				<span id="gameVsA">Bob B.</span>
+				<h5 id="gameScoreA">-</h5>
+			</div>
+			<div class="">
+				<span id="gameVsB">Frank F.</span>
+				<h5 id="gameScoreB">00:55</h5>
+			</div>
+			<br />
+			<br />
+			<b id="scoreWaiting">Please Wait...</b>
+			<button id="scoreAgain">Challenge Again</button>
+			<button id="scoreMainMenu">Main Menu</button>
+			
+			<script type="text/javascript">
+				screen('score', function(){
+					$('#scoreMainMenu').click(function(){
+						gotoScreen('main');
+					});
+					
+					this.onResume = function(){
+						$('#scoreWaiting').show();
+						$('#scoreAgain').hide();
+						$('#scoreMainMenu').hide();
+						updateChallenge(function(){
+							$('#scoreWaiting').hide();
+							if( !activeChallenge.opp_score ) {
+								$('#scoreMainMenu').show();
+							} else {
+								$('#scoreAgain').show();
+								$('#scoreMainMenu').show();
+							}
+						});					
+						
+						$('#scoreAgain').click(function(){
+							prevChallengeId = activeChallenge.id;
+							challengeOpp.user_id = activeChallenge.opp_user_id;
+							gotoScreen('setupChallenge');
+						});
+						
+						$('#gameVsA').text(authInfo.display_name);
+						$('#gameScoreA').text( formatTime(challengeSeconds) );
+						$('#gameVsB').text(activeChallenge.opp_display_name);
+						if( !activeChallenge.opp_score ) {
+							$('#gameResult').hide();
+							$('#gameScoreB').text('--:--');
+						} else {
+							$('#gameScoreB').text( formatTime(activeChallenge.opp_score) );
+							
+							$('#gameResult').show();
+							if( challengeSeconds < activeChallenge.opp_score ) {
+								$('#gameResult').text('WINNER!');
+							} else if( challengeSeconds > activeChallenge.opp_score ) {
+								$('#gameResult').text('NOT THIS TIME');
+							} else {
+								$('#gameResult').text('TIE');
+							}
+						}
+					};
 				});
 			</script>
 		</div>
