@@ -6,7 +6,10 @@
         <meta name="description" content="">
         <meta name="viewport" content="width=device-width">
 		<link rel="stylesheet" href="css/main.css">
-		<script type="text/javascript" src="js/jquery-1.9.1.min.js"></script>
+		<script src="phonegap.js"></script>
+		<script src="cdv-plugin-fb-connect.js"></script>
+		<script src="facebook-js-sdk.js"></script>
+		<script src="js/jquery-1.9.1.min.js"></script>
 		<script type="text/javascript">
 			var screenList = {};
 			var currentScreen = '';
@@ -98,21 +101,11 @@
 			
 			function initFbSdk( done )
 			{
-				window.fbAsyncInit = function() {
-					FB.init({
-						appId      : '545129182175702',
-						channelUrl : 'fbchannel.html'
-					});
-					done(null);
-				};
-				// Load the SDK Asynchronously
-				(function(d, debug){
-					var js, id = 'facebook-jssdk', ref = d.getElementsByTagName('script')[0];
-					if (d.getElementById(id)) {return;}
-					js = d.createElement('script'); js.id = id; js.async = true;
-					js.src = "//connect.facebook.net/en_US/all" + (debug ? "/debug" : "") + ".js";
-					ref.parentNode.insertBefore(js, ref);
-				}(document, /*debug*/ false));	
+				FB.init({
+					appId      : '545129182175702',
+					channelUrl : 'fbchannel.html'
+				});
+				done(null);
 			}
 			
 			function doFbLogin( done )

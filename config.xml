@@ -15,4 +15,9 @@
     <preference name="target-device"    value="universal" />
     <preference name="fullscreen"       value="true" />
 
+	<gap:plugin name="FacebookConnect">
+		<param name="APP_ID" value="545129182175702" />
+	</gap:plugin>
+
+	<access origin="*" subdomains="true" />
 </widget>
