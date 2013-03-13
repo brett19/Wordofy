@@ -2,7 +2,7 @@
 <widget xmlns     = "http://www.w3.org/ns/widgets"
         xmlns:gap = "http://phonegap.com/ns/1.0"
         id        = "com.tfg.wordofy"
-        version   = "2.3.0">
+        version   = "1.0.2">
     <name>Wordofy</name>
 
     <description>        
