@@ -253,12 +253,20 @@
 			var challengeStart = 0;
 			var challengeSeconds = 0;
 			
-			$(function(){
+			function onAppReady() {				
 				initScreens();
 				gotoScreen('gameLoad');
 				initFbSdk(function(){
 					gotoScreen('login');
 					//gotoScreen('score');
+				});
+			}
+			
+			$(function(){
+				console.log('body::ready');
+				$(document).on('deviceready', function() {
+					console.log('document::deviceready');
+					onAppReady();
 				});
 			});
 		</script>
