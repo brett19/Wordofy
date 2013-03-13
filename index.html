@@ -103,7 +103,9 @@
 			{
 				FB.init({
 					appId      : '545129182175702',
-					channelUrl : 'fbchannel.html'
+					channelUrl : 'fbchannel.html',
+              		nativeInterface: CDV.FB,
+              		useCachedDialogs: false
 				});
 				done(null);
 			}
@@ -255,7 +257,6 @@
 			
 			function onAppReady() {				
 				initScreens();
-				gotoScreen('gameLoad');
 				initFbSdk(function(){
 					gotoScreen('login');
 					//gotoScreen('score');
@@ -272,7 +273,7 @@
 		</script>
     </head>
     <body>
-		<div id="gameLoadScreen" class="screen">
+		<div id="gameLoadScreen" class="screen" style="display:block;">
 			<div>
 				<img class="loadSpinner" src="images/loading_spinner.gif" /><br />
 				<br />
