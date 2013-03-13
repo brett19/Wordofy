@@ -257,6 +257,7 @@
 			
 			function onAppReady() {				
 				initScreens();
+				gotoScreen('gameLoad');
 				initFbSdk(function(){
 					gotoScreen('login');
 					//gotoScreen('score');
@@ -273,7 +274,7 @@
 		</script>
     </head>
     <body>
-		<div id="gameLoadScreen" class="screen" style="display:block;">
+		<div id="gameLoadScreen" class="screen">
 			<div>
 				<img class="loadSpinner" src="images/loading_spinner.gif" /><br />
 				<br />
