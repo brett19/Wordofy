@@ -51,6 +51,8 @@
 			};
 		</script>
 		<script type="text/javascript">
+			var isEmulator = window.tinyHippos != undefined;
+		
 			var picPackList = [];
 			var fbAuthInfo = null;
 			var fbFriendsList = [];
@@ -104,7 +106,7 @@
 				FB.init({
 					appId      : '545129182175702',
 					channelUrl : 'fbchannel.html',
-              		nativeInterface: CDV.FB,
+              		nativeInterface: !isEmulator ? CDV.FB : null,
               		useCachedDialogs: false
 				});
 				done(null);
@@ -266,10 +268,15 @@
 			
 			$(function(){
 				console.log('body::ready');
-				$(document).on('deviceready', function() {
-					console.log('document::deviceready');
+				if(isEmulator) {
+					console.log('emulator::deviceready');
 					onAppReady();
-				});
+				} else {
+					$(document).on('deviceready', function() {
+						console.log('document::deviceready');
+						onAppReady();
+					});
+				}
 			});
 		</script>
     </head>
